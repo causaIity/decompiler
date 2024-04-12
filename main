@@ -1,0 +1,49 @@
+local httpService = cloneref(game:GetService('HttpService'))
+
+local function decompile(scr)
+    local s, bytecode = pcall(getscriptbytecode, scr)
+    if not s then
+        print("a - fail")
+        return `failed to get bytecode { bytecode }`
+    end
+
+    local response = request({
+        Url = 'https://unluau.lonegladiator.dev/unluau/decompile',
+        Method = 'POST',
+        Headers = {
+            ['Content-Type'] = 'application/json',
+        },
+        Body = httpService:JSONEncode({
+            version = 5,
+            bytecode = crypt.base64.encode(bytecode)
+        })
+    })
+
+    local decoded = httpService:JSONDecode(response.Body)
+    if decoded.status ~= 'ok' then
+        print("b - fail")
+        return `decompilation failed: { decoded.status }`
+    end
+    print("c - success")
+    return decoded.output
+end
+
+getgenv().decompile = decompile
+
+local directories = {}
+
+local function dir(x)
+  for i, v in pairs(x:GetDescendants()) do
+    table.insert(directories,v)
+  end
+end
+
+local DecompileDirectory = Directory or game.ReplicatedStorage
+
+dir(DecompileDirectory)
+
+for _, instance in directories do
+  if instance:IsA("LocalScript") or instance:IsA("ModuleScript") then
+    writefile(instance:GetFullName() .. ".lua", decompile(instance))
+  end
+end
